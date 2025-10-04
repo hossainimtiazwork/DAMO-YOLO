@@ -27,11 +27,19 @@ def build_dataset(cfg, ann_files, is_train=True, mosaic_mixup=None):
         args = data['args']
         args['transforms'] = None
         args['class_names'] = cfg.dataset.class_names
+        
+        # Add temporal parameters if using temporal dataset
+        if data['factory'] == 'COCOTemporalDataset':
+            args['num_frames'] = cfg.dataset.get('num_frames', 1)
+            args['temporal_stride'] = cfg.dataset.get('temporal_stride', 1)
+        
         # make dataset from factory
         dataset = factory(**args)
 
-        # mosaic wrapped
-        if is_train and mosaic_mixup is not None:
+        # mosaic wrapped - skip for temporal datasets with multiple frames
+        is_temporal = (data['factory'] == 'COCOTemporalDataset' and 
+                       cfg.dataset.get('num_frames', 1) > 1)
+        if is_train and mosaic_mixup is not None and not is_temporal:
             dataset = MosaicWrapper(dataset=dataset,
                                     img_size=mosaic_mixup.mosaic_size,
                                     mosaic_prob=mosaic_mixup.mosaic_prob,
