@@ -58,9 +58,14 @@ def get_activation(name='silu', inplace=True):
         raise AttributeError('Unsupported act type: {}'.format(name))
 
 
-def get_norm(name, out_channels):
+def get_norm(name, out_channels, dims=2):
     if name == 'bn':
-        module = nn.BatchNorm2d(out_channels)
+        if dims == 2:
+            module = nn.BatchNorm2d(out_channels)
+        elif dims == 3:
+            module = nn.BatchNorm3d(out_channels)
+        else:
+            raise NotImplementedError
     elif name == 'gn':
         module = nn.GroupNorm(out_channels)
     else:
@@ -147,6 +152,120 @@ class SPPBottleneck(nn.Module):
 def depthwise_conv(i, o, kernel_size, stride=1, padding=0, bias=False):
     return nn.Conv2d(i, o, kernel_size, stride, padding, bias=bias, groups=i)
 
+
+class Conv3DBNAct(nn.Module):
+    """A Conv3d -> Batchnorm3d -> activation block for spatio-temporal processing"""
+    def __init__(
+        self,
+        in_channels,
+        out_channels,
+        ksize,
+        stride=1,
+        groups=1,
+        bias=False,
+        act='silu',
+        norm='bn',
+    ):
+        super().__init__()
+        # same padding
+        if isinstance(ksize, int):
+            pad = (ksize - 1) // 2
+        else:
+            pad = tuple((k - 1) // 2 for k in ksize)
+        self.conv = nn.Conv3d(
+            in_channels,
+            out_channels,
+            kernel_size=ksize,
+            stride=stride,
+            padding=pad,
+            groups=groups,
+            bias=bias,
+        )
+        if norm is not None:
+            self.bn = get_norm(norm, out_channels, dims=3)
+        if act is not None:
+            self.act = get_activation(act, inplace=True)
+        self.with_norm = norm is not None
+        self.with_act = act is not None
+
+    def forward(self, x):
+        x = self.conv(x)
+        if self.with_norm:
+            x = self.bn(x)
+        if self.with_act:
+            x = self.act(x)
+        return x
+
+
+class TemporalFusion(nn.Module):
+    """Temporal fusion module to aggregate features across time"""
+    def __init__(self, in_channels, num_frames=4, fusion_type='conv3d'):
+        super().__init__()
+        self.num_frames = num_frames
+        self.fusion_type = fusion_type
+        
+        if fusion_type == 'conv3d':
+            # Use 3D convolution to fuse temporal information
+            self.temporal_conv = Conv3DBNAct(
+                in_channels,
+                in_channels,
+                ksize=(3, 1, 1),  # temporal kernel only
+                stride=1,
+                act='silu'
+            )
+        elif fusion_type == 'avg':
+            # Simple average pooling over temporal dimension
+            pass
+        elif fusion_type == 'attention':
+            # Temporal attention mechanism
+            self.query = nn.Conv2d(in_channels, in_channels // 8, 1)
+            self.key = nn.Conv2d(in_channels, in_channels // 8, 1)
+            self.value = nn.Conv2d(in_channels, in_channels, 1)
+            self.softmax = nn.Softmax(dim=1)
+            
+    def forward(self, x):
+        """
+        Args:
+            x: Input tensor of shape (B, C, T, H, W) or (B*T, C, H, W)
+        Returns:
+            Fused features of shape (B, C, H, W)
+        """
+        if x.dim() == 4:
+            # Reshape from (B*T, C, H, W) to (B, C, T, H, W)
+            bt, c, h, w = x.shape
+            b = bt // self.num_frames
+            x = x.view(b, self.num_frames, c, h, w)
+            x = x.permute(0, 2, 1, 3, 4)  # (B, C, T, H, W)
+            
+        if self.fusion_type == 'conv3d':
+            x = self.temporal_conv(x)
+            # Average over temporal dimension
+            x = x.mean(dim=2)
+        elif self.fusion_type == 'avg':
+            # Simple average over temporal dimension
+            x = x.mean(dim=2)
+        elif self.fusion_type == 'attention':
+            b, c, t, h, w = x.shape
+            # Reshape for attention computation
+            x_reshaped = x.permute(0, 2, 1, 3, 4).contiguous()  # (B, T, C, H, W)
+            x_reshaped = x_reshaped.view(b * t, c, h, w)
+            
+            # Compute attention weights
+            q = self.query(x_reshaped).view(b, t, -1)
+            k = self.key(x_reshaped).view(b, t, -1)
+            v = self.value(x_reshaped).view(b, t, c, h * w)
+            
+            # Attention scores
+            attn = torch.bmm(q, k.transpose(1, 2))  # (B, T, T)
+            attn = self.softmax(attn)
+            
+            # Apply attention
+            v = v.permute(0, 2, 1, 3)  # (B, C, T, H*W)
+            out = torch.matmul(attn.unsqueeze(1), v.permute(0, 2, 1, 3))  # (B, 1, T, C*H*W)
+            out = out.squeeze(1).view(b, t, c, h, w)
+            x = out.mean(dim=1)  # Average over temporal dimension
+            
+        return x
 
 
 class Focus(nn.Module):
