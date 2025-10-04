@@ -1,0 +1,148 @@
+DAMO-YOLO Spatio-Temporal Architecture
+========================================
+
+Original DAMO-YOLO (Spatial Only):
+-----------------------------------
+Input (B, C, H, W)
+    ↓
+[ConvKXBNRELU - Stage 0]
+    ↓
+[CSPWrapper - Stage 1]
+    ↓
+[CSPWrapper - Stage 2]
+    ↓
+[CSPWrapper - Stage 3]
+    ↓
+[CSPWrapper - Stage 4 + SPP]
+    ↓
+Output Features
+
+
+Enhanced Temporal DAMO-YOLO:
+-----------------------------
+Input (B, C, T, H, W) or (B*T, C, H, W)
+    ↓
+[ConvKXBNRELU - Stage 0]
+    ↓
+[TemporalCSPWrapper - Stage 1]
+    ↓  (optional temporal fusion)
+    ↓
+[TemporalCSPWrapper - Stage 2]
+    ↓  (optional temporal fusion)
+    ↓
+[TemporalCSPWrapper - Stage 3]
+    ↓  ← TemporalFusion (conv3d/avg/attention)
+    ↓
+[TemporalCSPWrapper - Stage 4 + SPP]
+    ↓  ← TemporalFusion (conv3d/avg/attention)
+    ↓
+Output Features (B, C, H, W)
+
+
+Temporal Fusion Module Details:
+--------------------------------
+
+1. Conv3D Fusion:
+   Input (B, C, T, H, W)
+        ↓
+   [Conv3D(3,1,1)] ← Temporal kernel
+        ↓
+   [BatchNorm3D]
+        ↓
+   [Activation]
+        ↓
+   Average over T
+        ↓
+   Output (B, C, H, W)
+
+2. Average Fusion:
+   Input (B, C, T, H, W)
+        ↓
+   Mean(dim=T)
+        ↓
+   Output (B, C, H, W)
+
+3. Attention Fusion:
+   Input (B, C, T, H, W)
+        ↓
+   Query, Key, Value (2D conv on each frame)
+        ↓
+   Attention(Q, K) → Weights
+        ↓
+   Weighted sum of V
+        ↓
+   Output (B, C, H, W)
+
+
+TemporalCSPWrapper Structure:
+------------------------------
+Input → Downsampler (Conv 3x3 stride 2)
+    ↓
+    SPP (optional)
+    ↓
+    TemporalFusion (optional) ← New!
+    ↓
+    ├─→ Shortcut → Conv 1x1
+    │
+    └─→ Conv 1x1 → CSP Blocks → Concat → Conv 1x1
+                                   ↑
+                                   └─ shortcut
+    ↓
+Output
+
+
+Key Design Principles:
+----------------------
+1. Backward Compatibility:
+   - Can process single images (T=1)
+   - Temporal fusion is optional
+   - Minimal changes to existing code
+
+2. Flexibility:
+   - Choose fusion type per use case
+   - Enable temporal fusion at specific stages
+   - Configurable number of frames
+
+3. Efficiency:
+   - Selective temporal processing
+   - Lightweight fusion options
+   - Parallel spatial processing
+
+4. Extensibility:
+   - Easy to add new fusion strategies
+   - Can extend to neck and head
+   - Framework for video-based tasks
+
+
+Configuration Example:
+----------------------
+{
+    'name': 'TinyNAS_csp_temporal',
+    'num_frames': 4,              # Process 4 frames together
+    'temporal_stages': [3, 4],    # Apply fusion at stages 3 & 4
+    'fusion_type': 'conv3d',      # Use learnable 3D convolution
+    # ... other parameters
+}
+
+
+Usage Scenarios:
+----------------
+1. Video Object Detection:
+   - Input: Video clip (B, C, T, H, W)
+   - Output: Detections per frame
+   - Benefit: Temporal consistency
+
+2. Action Recognition:
+   - Input: Action clip
+   - Output: Action features
+   - Benefit: Motion understanding
+
+3. Video Surveillance:
+   - Input: Camera feed
+   - Output: Real-time detections
+   - Benefit: Robust to motion blur
+
+4. Sports Analysis:
+   - Input: Game footage
+   - Output: Player/ball tracking
+   - Benefit: Better tracking in motion
