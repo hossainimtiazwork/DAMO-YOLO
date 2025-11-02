@@ -256,6 +256,12 @@ def save_mask(mask: np.ndarray, save_path: str):
         mask (np.ndarray): Segmentation mask [H, W]
         save_path (str): Path to save mask
     """
+    # Check if mask values exceed uint8 range
+    max_val = mask.max()
+    if max_val > 255:
+        print(f"Warning: Mask contains values up to {max_val}, which exceed uint8 range (0-255).")
+        print("Consider using a 16-bit format if you have more than 256 classes.")
+    
     # Convert to uint8 and save
     mask_uint8 = mask.astype(np.uint8)
     cv2.imwrite(save_path, mask_uint8)

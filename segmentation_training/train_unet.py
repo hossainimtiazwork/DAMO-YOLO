@@ -16,7 +16,6 @@ from typing import Optional, Tuple, List
 
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 from torch.utils.data import DataLoader, Dataset
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import ModelCheckpoint, LearningRateMonitor, EarlyStopping
@@ -25,7 +24,6 @@ import segmentation_models_pytorch as smp
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
 import numpy as np
-from PIL import Image
 import cv2
 
 
@@ -84,7 +82,8 @@ class SegmentationDataset(Dataset):
         
         # Load corresponding mask
         # Assumes mask has same name but different extension (e.g., .png)
-        mask_name = img_name.replace('.jpg', '.png').replace('.jpeg', '.png')
+        # Use splitext for robust extension handling
+        mask_name = os.path.splitext(img_name)[0] + '.png'
         mask_path = os.path.join(self.masks_dir, mask_name)
         mask = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE)
         
@@ -157,11 +156,11 @@ class SegmentationDataModule(pl.LightningDataModule):
             # Geometric augmentations
             A.HorizontalFlip(p=0.5),  # Flip horizontally with 50% probability
             A.VerticalFlip(p=0.5),     # Flip vertically with 50% probability
-            A.Rotate(limit=35, p=0.5), # Rotate by up to 35 degrees
+            # Combined shift, scale, and rotation augmentation
             A.ShiftScaleRotate(
                 shift_limit=0.1,        # Max shift fraction
                 scale_limit=0.2,        # Max scale change
-                rotate_limit=30,        # Max rotation degrees
+                rotate_limit=35,        # Max rotation degrees
                 p=0.5
             ),
             

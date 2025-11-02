@@ -17,6 +17,12 @@ import numpy as np
 import cv2
 from train_unet import train
 
+# Constants for synthetic data generation
+SYNTHETIC_IMAGE_SIZE = 256  # Size of synthetic images
+SYNTHETIC_MASK_MIN_RADIUS = 40  # Minimum radius for synthetic circular masks
+SYNTHETIC_MASK_MAX_RADIUS = 80  # Maximum radius for synthetic circular masks
+SYNTHETIC_CENTER_OFFSET = 40  # Maximum offset for mask centers
+
 
 def create_sample_dataset(base_dir: str = './sample_data', num_samples: int = 50):
     """
@@ -46,16 +52,18 @@ def create_sample_dataset(base_dir: str = './sample_data', num_samples: int = 50
     # Generate training samples
     print(f"Generating {num_samples} training samples...")
     for i in range(num_samples):
-        # Create synthetic RGB image (256x256)
+        # Create synthetic RGB image
         # In practice, load your real images here
-        image = np.random.randint(0, 256, (256, 256, 3), dtype=np.uint8)
+        image = np.random.randint(0, 256, (SYNTHETIC_IMAGE_SIZE, SYNTHETIC_IMAGE_SIZE, 3), dtype=np.uint8)
         
         # Create synthetic binary segmentation mask
         # In practice, load your real masks here
-        # This creates a circular mask in the center
-        y, x = np.ogrid[:256, :256]
-        center_y, center_x = 128 + np.random.randint(-40, 40), 128 + np.random.randint(-40, 40)
-        radius = np.random.randint(40, 80)
+        # This creates a circular mask with random center and radius
+        y, x = np.ogrid[:SYNTHETIC_IMAGE_SIZE, :SYNTHETIC_IMAGE_SIZE]
+        center_offset = np.random.randint(-SYNTHETIC_CENTER_OFFSET, SYNTHETIC_CENTER_OFFSET + 1)
+        center_y = SYNTHETIC_IMAGE_SIZE // 2 + center_offset
+        center_x = SYNTHETIC_IMAGE_SIZE // 2 + np.random.randint(-SYNTHETIC_CENTER_OFFSET, SYNTHETIC_CENTER_OFFSET + 1)
+        radius = np.random.randint(SYNTHETIC_MASK_MIN_RADIUS, SYNTHETIC_MASK_MAX_RADIUS + 1)
         mask = ((x - center_x)**2 + (y - center_y)**2 <= radius**2).astype(np.uint8)
         
         # Save image and mask
@@ -70,11 +78,13 @@ def create_sample_dataset(base_dir: str = './sample_data', num_samples: int = 50
     print(f"Generating {num_val_samples} validation samples...")
     for i in range(num_val_samples):
         # Create synthetic image and mask
-        image = np.random.randint(0, 256, (256, 256, 3), dtype=np.uint8)
+        image = np.random.randint(0, 256, (SYNTHETIC_IMAGE_SIZE, SYNTHETIC_IMAGE_SIZE, 3), dtype=np.uint8)
         
-        y, x = np.ogrid[:256, :256]
-        center_y, center_x = 128 + np.random.randint(-40, 40), 128 + np.random.randint(-40, 40)
-        radius = np.random.randint(40, 80)
+        y, x = np.ogrid[:SYNTHETIC_IMAGE_SIZE, :SYNTHETIC_IMAGE_SIZE]
+        center_offset = np.random.randint(-SYNTHETIC_CENTER_OFFSET, SYNTHETIC_CENTER_OFFSET + 1)
+        center_y = SYNTHETIC_IMAGE_SIZE // 2 + center_offset
+        center_x = SYNTHETIC_IMAGE_SIZE // 2 + np.random.randint(-SYNTHETIC_CENTER_OFFSET, SYNTHETIC_CENTER_OFFSET + 1)
+        radius = np.random.randint(SYNTHETIC_MASK_MIN_RADIUS, SYNTHETIC_MASK_MAX_RADIUS + 1)
         mask = ((x - center_x)**2 + (y - center_y)**2 <= radius**2).astype(np.uint8)
         
         # Save image and mask
