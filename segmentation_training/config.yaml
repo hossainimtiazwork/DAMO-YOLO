@@ -1,0 +1,199 @@
+# ============================================================================
+# Configuration file for SMP UNet Training Pipeline
+# ============================================================================
+# This file contains all configurable parameters for the training pipeline.
+# Modify these values according to your dataset and requirements.
+# ============================================================================
+
+# ----------------------------------------------------------------------------
+# Data Configuration
+# ----------------------------------------------------------------------------
+data:
+  # Paths to training data
+  train_images_dir: "./data/train/images"
+  train_masks_dir: "./data/train/masks"
+  
+  # Paths to validation data
+  val_images_dir: "./data/val/images"
+  val_masks_dir: "./data/val/masks"
+  
+  # Image size for training (height, width)
+  # All images will be resized to this size
+  image_size: [256, 256]
+  
+  # Number of data loading workers
+  # Set to 0 for single-process loading (slower but uses less memory)
+  # Recommended: 4-8 for multi-core systems
+  num_workers: 4
+  
+  # Batch size for training and validation
+  # Reduce if you encounter out-of-memory errors
+  batch_size: 8
+
+# ----------------------------------------------------------------------------
+# Model Configuration
+# ----------------------------------------------------------------------------
+model:
+  # Encoder backbone architecture
+  # Available encoders: resnet18, resnet34, resnet50, resnet101, resnet152
+  #                     efficientnet-b0 to efficientnet-b7
+  #                     densenet121, densenet169, densenet201
+  #                     mobilenet_v2, vgg16, vgg19
+  # See: https://github.com/qubvel/segmentation_models.pytorch
+  encoder_name: "resnet34"
+  
+  # Pre-trained weights for encoder
+  # Options: "imagenet" (recommended), None (random initialization)
+  encoder_weights: "imagenet"
+  
+  # Number of segmentation classes (including background)
+  # For binary segmentation: 2 (background + foreground)
+  # For multi-class: number of classes you have
+  num_classes: 2
+
+# ----------------------------------------------------------------------------
+# Training Configuration
+# ----------------------------------------------------------------------------
+training:
+  # Maximum number of training epochs
+  max_epochs: 100
+  
+  # Initial learning rate
+  # Default: 1e-4 works well for most cases
+  # Increase for faster convergence, decrease for more stable training
+  learning_rate: 0.0001
+  
+  # Weight decay for regularization (L2 penalty)
+  # Helps prevent overfitting
+  # Typical values: 1e-4 to 1e-5
+  weight_decay: 0.0001
+
+# ----------------------------------------------------------------------------
+# Optimizer Configuration
+# ----------------------------------------------------------------------------
+optimizer:
+  # Optimizer type (currently using AdamW in the code)
+  type: "AdamW"
+  
+  # Adam beta parameters
+  beta1: 0.9
+  beta2: 0.999
+  
+  # Epsilon for numerical stability
+  epsilon: 1e-8
+
+# ----------------------------------------------------------------------------
+# Scheduler Configuration
+# ----------------------------------------------------------------------------
+scheduler:
+  # Scheduler type (currently using CosineAnnealingLR in the code)
+  type: "CosineAnnealingLR"
+  
+  # Minimum learning rate for cosine annealing
+  # Learning rate will decay from initial_lr to eta_min
+  eta_min: 1e-6
+
+# ----------------------------------------------------------------------------
+# Augmentation Configuration
+# ----------------------------------------------------------------------------
+augmentation:
+  # Training augmentations (applied during training only)
+  train:
+    # Geometric augmentations
+    horizontal_flip_prob: 0.5
+    vertical_flip_prob: 0.5
+    rotation_limit: 35
+    shift_scale_rotate_prob: 0.5
+    shift_limit: 0.1
+    scale_limit: 0.2
+    rotate_limit: 30
+    
+    # Color augmentations
+    brightness_contrast_prob: 0.5
+    brightness_limit: 0.2
+    contrast_limit: 0.2
+    hue_saturation_value_prob: 0.5
+    hue_shift_limit: 20
+    sat_shift_limit: 30
+    val_shift_limit: 20
+    
+    # Blur and noise
+    gaussian_blur_prob: 0.3
+    blur_limit: [3, 7]
+    gaussian_noise_prob: 0.3
+    noise_var_limit: [10.0, 50.0]
+  
+  # Normalization parameters (ImageNet statistics)
+  normalize:
+    mean: [0.485, 0.456, 0.406]
+    std: [0.229, 0.224, 0.225]
+
+# ----------------------------------------------------------------------------
+# Hardware Configuration
+# ----------------------------------------------------------------------------
+hardware:
+  # Accelerator type
+  # Options: "auto" (auto-detect), "gpu", "cpu"
+  accelerator: "auto"
+  
+  # Number of devices to use
+  # For GPU: number of GPUs (1 for single GPU)
+  # For CPU: number of CPU cores
+  devices: 1
+  
+  # Training precision
+  # Options: "32" (full precision), "16-mixed" (mixed precision, faster on modern GPUs),
+  #          "bf16-mixed" (bfloat16 mixed precision)
+  # Note: Mixed precision can speed up training significantly on modern GPUs
+  precision: "16-mixed"
+
+# ----------------------------------------------------------------------------
+# Callbacks Configuration
+# ----------------------------------------------------------------------------
+callbacks:
+  # Model checkpoint callback
+  checkpoint:
+    # Monitor this metric for saving best models
+    monitor: "val/iou"
+    
+    # Mode: "max" for metrics to maximize (IoU, accuracy)
+    #       "min" for metrics to minimize (loss)
+    mode: "max"
+    
+    # Number of best models to keep
+    save_top_k: 3
+    
+    # Also save the last checkpoint
+    save_last: true
+  
+  # Early stopping callback
+  early_stopping:
+    # Monitor this metric for early stopping
+    monitor: "val/loss"
+    
+    # Mode: "min" for metrics to minimize
+    mode: "min"
+    
+    # Number of epochs with no improvement before stopping
+    patience: 15
+
+# ----------------------------------------------------------------------------
+# Logging Configuration
+# ----------------------------------------------------------------------------
+logging:
+  # Output directory for logs and checkpoints
+  output_dir: "./outputs/unet_training"
+  
+  # Log metrics every N steps
+  log_every_n_steps: 10
+  
+  # Number of sample images to log to TensorBoard
+  num_sample_images: 4
+
+# ----------------------------------------------------------------------------
+# Seed Configuration (for reproducibility)
+# ----------------------------------------------------------------------------
+seed:
+  # Random seed for reproducibility
+  # Set to null for non-deterministic training (faster)
+  value: 42

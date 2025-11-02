@@ -1,0 +1,36 @@
+# Ignore training outputs
+outputs/
+sample_data/
+
+# Ignore checkpoints
+*.ckpt
+checkpoints/
+
+# Ignore TensorBoard logs
+logs/
+lightning_logs/
+
+# Ignore predictions
+predictions/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Virtual environments
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
