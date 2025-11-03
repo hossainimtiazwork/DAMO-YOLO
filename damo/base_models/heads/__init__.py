@@ -3,6 +3,7 @@
 import copy
 
 from .zero_head import ZeroHead
+from .needle_head import NeedleHead
 
 
 def build_head(cfg):
@@ -11,5 +12,7 @@ def build_head(cfg):
     name = head_cfg.pop('name')
     if name == 'ZeroHead':
         return ZeroHead(**head_cfg)
+    elif name == 'NeedleHead':
+        return NeedleHead(**head_cfg)
     else:
         raise NotImplementedError
