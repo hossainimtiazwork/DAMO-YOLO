@@ -19,7 +19,7 @@ def test_needle_model_instantiation():
     print("Testing needle detection model instantiation...")
     
     # Parse config
-    config_file = './configs/damoyolo_needle_detection.py'
+    config_file = os.path.join(os.path.dirname(__file__), 'configs', 'damoyolo_needle_detection.py')
     try:
         config = parse_config(config_file)
         print("✓ Config parsed successfully")
@@ -46,7 +46,7 @@ def test_needle_model_forward():
     print("\nTesting needle detection model forward pass...")
     
     # Parse config
-    config_file = './configs/damoyolo_needle_detection.py'
+    config_file = os.path.join(os.path.dirname(__file__), 'configs', 'damoyolo_needle_detection.py')
     config = parse_config(config_file)
     
     # Build model

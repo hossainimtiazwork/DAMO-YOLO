@@ -139,9 +139,9 @@ class AngleLoss(nn.Module):
         else:
             max_angle = 180.0
         
-        # Compute the smallest angle difference
+        # Compute the smallest angle difference by normalizing to [-π, π]
         diff = pred - target
-        diff = torch.atan2(torch.sin(diff), torch.cos(diff))
+        diff = ((diff + math.pi) % (2 * math.pi)) - math.pi
         
         # L1 loss on angle difference
         loss = torch.abs(diff)

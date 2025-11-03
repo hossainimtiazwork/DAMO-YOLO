@@ -201,7 +201,7 @@ class NeedleHead(nn.Module):
             for i in range(len(self.strides))
         ])
         
-        # Direction regression head (2 values: sin and cos of angle)
+        # Direction regression head (2 values: sin(angle) and cos(angle) respectively)
         self.gfl_direction = nn.ModuleList([
             nn.Conv2d(self.feat_channels[i], 2,
                      self.last_kernel_size, padding=self.last_kernel_size//2)
@@ -382,7 +382,7 @@ class NeedleHead(nn.Module):
             # Decode radius (apply sigmoid and scale)
             radius_preds = torch.sigmoid(radius_preds) * self.max_radius
             
-            # Direction is already in sin/cos format, convert to angle
+            # Direction is in (sin, cos) format at indices [0, 1], convert to angle
             # angle = atan2(sin, cos)
             angles = torch.atan2(direction_preds[..., 0], direction_preds[..., 1]).unsqueeze(-1)
 
