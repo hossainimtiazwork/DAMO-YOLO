@@ -163,14 +163,11 @@ class BoundaryAwareDiceLoss(nn.Module):
             pred_class = pred_softmax[:, class_idx:class_idx+1, :, :]  # (N, 1, H, W)
             target_class = target_one_hot[:, class_idx:class_idx+1, :, :]  # (N, 1, H, W)
             
-            # Apply weights
-            pred_weighted = pred_class * weight_mask
-            target_weighted = target_class * weight_mask
-            
-            # Compute intersection and union
-            intersection = (pred_weighted * target_weighted).sum(dim=(2, 3))
-            pred_sum = pred_weighted.sum(dim=(2, 3))
-            target_sum = target_weighted.sum(dim=(2, 3))
+            # Compute intersection and sums with spatial weighting
+            # Weight is applied to each pixel position, not to pred/target separately
+            intersection = (pred_class * target_class * weight_mask).sum(dim=(2, 3))
+            pred_sum = (pred_class * weight_mask).sum(dim=(2, 3))
+            target_sum = (target_class * weight_mask).sum(dim=(2, 3))
             
             # Compute Dice coefficient
             dice_coeff = (2.0 * intersection + self.smooth) / \
